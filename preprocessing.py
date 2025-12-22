@@ -903,17 +903,18 @@ class Dataset:
         return aug_transform
 
     def _list_categories(self):
-        root = Path('data/AnomalyShapeNet/dataset/pcd')
+        root = Path('data/shapenet-ad')
         if not root.exists():
             return []
         return sorted([p.name for p in root.iterdir() if p.is_dir()])
 
     def _train_file_glob(self):
-        return str(Path('data/AnomalyShapeNet/dataset/obj') / self.category / '*.obj')
+        # R3DAD uses .pcd files for training, not .obj
+        return str(Path('data/shapenet-ad') / self.category / 'train' / '*.pcd')
 
     def _train_file_filter(self, candidates):
-        pattern = re.compile(r'template')
-        return sorted([fn for fn in candidates if pattern.search(fn)])
+        # R3DAD structure: all files in train/ directory are training samples
+        return sorted(candidates)
 
     def _build_train_file_list(self):
         data_list = glob.glob(self._train_file_glob())
@@ -921,7 +922,7 @@ class Dataset:
         return train_files * self.data_repeat
 
     def _test_file_glob(self):
-        return str(Path('data/AnomalyShapeNet/dataset/pcd') / self.category / 'test' / '*.pcd')
+        return str(Path('data/shapenet-ad') / self.category / 'test' / '*.pcd')
 
     def _build_test_file_list(self):
         test_files = glob.glob(self._test_file_glob())
@@ -983,7 +984,7 @@ class Dataset:
         return val_files
 
     def _default_gt_mask_dir(self):
-        return Path('data/AnomalyShapeNet/dataset/pcd') / self.category / 'GT'
+        return Path('data/shapenet-ad') / self.category / 'GT'
 
     def _resolve_gt_path(self, sample_name: str) -> Path:
         return Path(self.gt_mask_dir) / f'{sample_name}.txt'
@@ -1026,10 +1027,16 @@ class Dataset:
                 coord_cached, normal_cached = cached
                 return coord_cached.copy(), normal_cached.copy()
 
-        obj = o3d.io.read_triangle_mesh(fn_path)
-        obj.compute_vertex_normals()                         # Compute normals
-        coord = np.asarray(obj.vertices)                     # Extract vertices (N, 3)
-        vertex_normals = np.asarray(obj.vertex_normals)      # Extract normals (N, 3)
+        # Load point cloud from .pcd file
+        pcd = o3d.io.read_point_cloud(fn_path)
+        coord = np.asarray(pcd.points)                       # Extract points (N, 3)
+        
+        # Compute normals if not available
+        if not pcd.has_normals():
+            pcd.estimate_normals(
+                search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30)
+            )
+        vertex_normals = np.asarray(pcd.normals)            # Extract normals (N, 3)
 
         if self.cache_dataset:
             self._train_cache[fn_path] = (coord.copy(), vertex_normals.copy())

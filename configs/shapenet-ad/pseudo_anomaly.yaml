@@ -1,0 +1,52 @@
+# Configuration for R3DAD training with Pseudo Anomaly Synthesis
+
+# Dataset configuration
+dataset_path: data/shapenet-ad/
+batch_size: 4
+num_works: 4
+data_repeat: 1
+voxel_size: 0.05
+mask_num: 32
+cache_dataset: false
+
+# Pseudo anomaly synthesis parameters
+smart_anomaly: true
+R_low_bound: 0.10
+R_up_bound: 0.30
+R_alpha: 2.0
+R_beta: 5.0
+B_low_bound: 0.02
+B_up_bound: 0.15
+B_alpha: 2.0
+B_beta: 5.0
+one_sided_prob: 0.7
+cosine_kernel_prob: 0.4
+gaussian_kernel_prob: 0.3
+poly_kernel_prob: 0.2
+hard_kernel_prob: 0.1
+poly_q: 2.0
+
+# Model configuration
+model: AutoEncoder
+latent_dim: 256
+num_steps: 200
+beta_1: 0.0001
+beta_T: 0.05
+sched_mode: linear
+flexibility: 0.0
+residual: true
+
+# Training configuration
+max_iters: 40000
+lr: 0.001
+weight_decay: 0
+max_grad_norm: 10
+end_lr: 0.0001
+sched_start_epoch: 150000
+sched_end_epoch: 300000
+val_freq: 1000
+seed: 2020
+
+# Validation
+validation: false
+validation_suffixes: ''
