@@ -131,5 +131,15 @@ dmypy.json
 .DS_Store
 /playgrounds
 /logs*
+/logs_pseudo_anomaly/
+/logs_ae/
 data
+# Allow Python module files in data directory
+!data/__init__.py
+!data/AnomalyShapeNet/
+!data/AnomalyShapeNet/*.py
 results*
+*.pth
+*.pt
+*.ckpt
+*.npy
