@@ -208,15 +208,15 @@ scheduler = get_linear_scheduler(
 )
 
 # Training function
-def train(it, train_loader):
+def train(it, train_iter_ref):
     """Train one iteration."""
     # Get batch from dataloader
     try:
-        batch = next(train_iter)
+        batch = next(train_iter_ref[0])
     except StopIteration:
         # Reset iterator if exhausted
-        train_iter = iter(train_loader)
-        batch = next(train_iter)
+        train_iter_ref[0] = iter(dataset.train_data_loader)
+        batch = next(train_iter_ref[0])
     
     # Extract data from batch
     # The preprocessing module returns voxelized data and original point clouds
@@ -302,12 +302,13 @@ def validate(it):
 
 # Main training loop
 logger.info('Starting training with pseudo anomaly synthesis...')
-train_iter = iter(dataset.train_data_loader)
+# Use a list to hold train_iter so it can be modified inside the function
+train_iter_ref = [iter(dataset.train_data_loader)]
 
 try:
     it = 1
     while it <= args.max_iters:
-        train_loss = train(it, dataset.train_data_loader)
+        train_loss = train(it, train_iter_ref)
         
         if it % args.val_freq == 0 or it == args.max_iters:
             score = validate(it)

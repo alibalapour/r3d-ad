@@ -26,7 +26,7 @@ def main(args):
         cates = [args.category]
     
     for cate in cates:
-        log_dir = f"logs_pseudo_anomaly/{exp_name}_{time_fix}_{args.tag}/" if args.tag else f"logs_pseudo_anomaly/{exp_name}_{time_fix}/"
+        log_dir = f'logs_pseudo_anomaly/{exp_name}_{time_fix}' + (f'_{args.tag}' if args.tag else '') + '/'
         cmd = f"python train_with_pseudo_anomaly.py --category {cate} --log_root {log_dir}" + cfg_cmd
         
         print(f"\n{'='*80}")

@@ -909,11 +909,13 @@ class Dataset:
         return sorted([p.name for p in root.iterdir() if p.is_dir()])
 
     def _train_file_glob(self):
-        # R3DAD uses .pcd files for training, not .obj
+        # Updated for R3DAD shapenet-ad dataset structure which uses .pcd files
+        # (Original preprocessing.py used .obj files from AnomalyShapeNet)
         return str(Path('data/shapenet-ad') / self.category / 'train' / '*.pcd')
 
     def _train_file_filter(self, candidates):
-        # R3DAD structure: all files in train/ directory are training samples
+        # Updated for R3DAD structure: all files in train/ directory are training samples
+        # (Original used regex pattern matching for 'template' files)
         return sorted(candidates)
 
     def _build_train_file_list(self):

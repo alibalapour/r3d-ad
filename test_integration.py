@@ -147,8 +147,8 @@ try:
         "Directional Drag"
     ]
     
-    for i, name in enumerate(preset_names, 1):
-        print(f"  {i}. {name}")
+    for num, name in enumerate(preset_names, 1):
+        print(f"  {num}. {name}")
     
     # Test generating a preset config
     print("\n  Generating sample anomaly configs...")
