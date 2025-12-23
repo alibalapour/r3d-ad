@@ -236,7 +236,7 @@ class AnomalyPreset:
             np.random.beta(self.args.R_alpha, self.args.R_beta, size=1)
         B = self.args.B_low_bound + (self.args.B_up_bound - self.args.B_low_bound) * \
             np.random.beta(self.args.B_alpha, self.args.B_beta, size=1)
-        return float(R), float(B)
+        return float(R[0]), float(B[0])
 
     def _p(self, name, default):
         return getattr(self.args, name, default)
