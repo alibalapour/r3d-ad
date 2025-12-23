@@ -8,13 +8,16 @@ import h5py
 from tqdm.auto import tqdm
 import open3d as o3d
 
-from utils.util import normalize, random_rorate, random_patch, random_translate
+from utils.util import (normalize, random_rorate, random_patch, random_translate,
+                        pseudo_anomaly_synthesis, SmartAnomaly_Cfg, AnomalyPreset)
 
 all_shapenetad_cates = ['ashtray0', 'bag0', 'bottle0', 'bottle1', 'bottle3', 'bowl0', 'bowl1', 'bowl2', 'bowl3', 'bowl4', 'bowl5', 'bucket0', 'bucket1', 'cap0', 'cap3', 'cap4', 'cap5', 'cup0', 'cup1', 'eraser0', 'headset0', 'headset1', 'helmet0', 'helmet1', 'helmet2', 'helmet3', 'jar0', 'microphone0', 'shelf0', 'tap0', 'tap1', 'vase0', 'vase1', 'vase2', 'vase3', 'vase4', 'vase5', 'vase7', 'vase8', 'vase9']
 
 class ShapeNetAD(Dataset):
     
-    def __init__(self, path, cates, split, scale_mode=None, num_points=2048, num_aug=4, transforms=list()):
+    def __init__(self, path, cates, split, scale_mode=None, num_points=2048, num_aug=4, transforms=list(), 
+                 use_pseudo_anomaly=False, anomaly_preset_config=None, anomaly_ratio=0.3,
+                 normal_radius=0.1, normal_max_nn=30):
         super().__init__()
         assert isinstance(cates, list), '`cates` must be a list of cate names.'
         assert split in ('train', 'test')
@@ -29,6 +32,15 @@ class ShapeNetAD(Dataset):
         self.num_points = num_points
         self.num_aug = num_aug
         self.transforms = transforms
+        
+        # Pseudo anomaly synthesis support
+        self.use_pseudo_anomaly = use_pseudo_anomaly
+        self.anomaly_presets = None
+        self.anomaly_ratio = anomaly_ratio  # Fraction of points to apply anomaly to
+        self.normal_radius = normal_radius  # Radius for normal estimation
+        self.normal_max_nn = normal_max_nn  # Max nearest neighbors for normal estimation
+        if use_pseudo_anomaly and anomaly_preset_config is not None:
+            self.anomaly_presets = AnomalyPreset(anomaly_preset_config)
 
         self.pointclouds = []
         self.stats = None
@@ -125,6 +137,41 @@ class ShapeNetAD(Dataset):
                     else:
                         pointcloud = random.choice(tpls)
                     pointcloud = random_rorate(pointcloud)
+                    
+                    # Apply pseudo anomaly synthesis if enabled
+                    if self.use_pseudo_anomaly and self.anomaly_presets is not None:
+                        # Estimate normals
+                        pcd_temp = o3d.geometry.PointCloud()
+                        pcd_temp.points = o3d.utility.Vector3dVector(pointcloud)
+                        pcd_temp.estimate_normals(
+                            search_param=o3d.geometry.KDTreeSearchParamHybrid(
+                                radius=self.normal_radius, 
+                                max_nn=self.normal_max_nn
+                            )
+                        )
+                        normals = np.asarray(pcd_temp.normals, dtype=np.float32)
+                        
+                        # Select a random subset of points for anomaly
+                        num_anomaly_points = int(self.num_points * self.anomaly_ratio)
+                        anomaly_indices = np.random.choice(len(pointcloud), num_anomaly_points, False)
+                        anomaly_points = pointcloud[anomaly_indices]
+                        anomaly_normals = normals[anomaly_indices]
+                        
+                        # Get center of anomaly region
+                        center = np.mean(anomaly_points, axis=0)
+                        
+                        # Select random preset
+                        preset_fn = random.choice(self.anomaly_presets.presets)
+                        anomaly_cfg = preset_fn()
+                        
+                        # Apply anomaly synthesis
+                        anomaly_points_deformed = pseudo_anomaly_synthesis(
+                            anomaly_points, anomaly_normals, center, anomaly_cfg
+                        )
+                        
+                        # Update pointcloud with deformed points
+                        pointcloud[anomaly_indices] = anomaly_points_deformed
+                    
                     choice = np.random.choice(len(pointcloud), self.num_points, False)
                     pc = torch.from_numpy(pointcloud[choice])
                     mask = torch.zeros(self.num_points)
