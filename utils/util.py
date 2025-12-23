@@ -2,7 +2,7 @@ import random
 import numpy as np
 import open3d as o3d
 from itertools import repeat
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from typing import Callable
 
 def random_rorate(pc):

@@ -16,7 +16,8 @@ all_shapenetad_cates = ['ashtray0', 'bag0', 'bottle0', 'bottle1', 'bottle3', 'bo
 class ShapeNetAD(Dataset):
     
     def __init__(self, path, cates, split, scale_mode=None, num_points=2048, num_aug=4, transforms=list(), 
-                 use_pseudo_anomaly=False, anomaly_preset_config=None):
+                 use_pseudo_anomaly=False, anomaly_preset_config=None, anomaly_ratio=0.3,
+                 normal_radius=0.1, normal_max_nn=30):
         super().__init__()
         assert isinstance(cates, list), '`cates` must be a list of cate names.'
         assert split in ('train', 'test')
@@ -35,6 +36,9 @@ class ShapeNetAD(Dataset):
         # Pseudo anomaly synthesis support
         self.use_pseudo_anomaly = use_pseudo_anomaly
         self.anomaly_presets = None
+        self.anomaly_ratio = anomaly_ratio  # Fraction of points to apply anomaly to
+        self.normal_radius = normal_radius  # Radius for normal estimation
+        self.normal_max_nn = normal_max_nn  # Max nearest neighbors for normal estimation
         if use_pseudo_anomaly and anomaly_preset_config is not None:
             self.anomaly_presets = AnomalyPreset(anomaly_preset_config)
 
@@ -140,12 +144,15 @@ class ShapeNetAD(Dataset):
                         pcd_temp = o3d.geometry.PointCloud()
                         pcd_temp.points = o3d.utility.Vector3dVector(pointcloud)
                         pcd_temp.estimate_normals(
-                            search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30)
+                            search_param=o3d.geometry.KDTreeSearchParamHybrid(
+                                radius=self.normal_radius, 
+                                max_nn=self.normal_max_nn
+                            )
                         )
                         normals = np.asarray(pcd_temp.normals, dtype=np.float32)
                         
                         # Select a random subset of points for anomaly
-                        num_anomaly_points = int(self.num_points * 0.3)  # 30% of points
+                        num_anomaly_points = int(self.num_points * self.anomaly_ratio)
                         anomaly_indices = np.random.choice(len(pointcloud), num_anomaly_points, False)
                         anomaly_points = pointcloud[anomaly_indices]
                         anomaly_normals = normals[anomaly_indices]
