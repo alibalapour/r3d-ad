@@ -18,7 +18,6 @@ from dataclasses import dataclass, asdict
 from typing import Callable
 
 
-from utils.visualize import save_pc_plotly_html
 DEBUG = False
 
 
@@ -903,7 +902,7 @@ class Dataset:
         return aug_transform
 
     def _list_categories(self):
-        root = Path('data/shapenet-ad')
+        root = Path('data/AnomalyShapeNet/dataset/pcd/')
         if not root.exists():
             return []
         return sorted([p.name for p in root.iterdir() if p.is_dir()])
@@ -911,7 +910,7 @@ class Dataset:
     def _train_file_glob(self):
         # Updated for R3DAD shapenet-ad dataset structure which uses .pcd files
         # (Original preprocessing.py used .obj files from AnomalyShapeNet)
-        return str(Path('data/shapenet-ad') / self.category / 'train' / '*.pcd')
+        return str(Path('data/AnomalyShapeNet/dataset/pcd/') / self.category / 'train' / '*.pcd')
 
     def _train_file_filter(self, candidates):
         # Updated for R3DAD structure: all files in train/ directory are training samples
@@ -924,7 +923,7 @@ class Dataset:
         return train_files * self.data_repeat
 
     def _test_file_glob(self):
-        return str(Path('data/shapenet-ad') / self.category / 'test' / '*.pcd')
+        return str(Path('data/AnomalyShapeNet/dataset/pcd/') / self.category / 'test' / '*.pcd')
 
     def _build_test_file_list(self):
         test_files = glob.glob(self._test_file_glob())
@@ -986,7 +985,7 @@ class Dataset:
         return val_files
 
     def _default_gt_mask_dir(self):
-        return Path('data/shapenet-ad') / self.category / 'GT'
+        return Path('data/AnomalyShapeNet/dataset/pcd/') / self.category / 'GT'
 
     def _resolve_gt_path(self, sample_name: str) -> Path:
         return Path(self.gt_mask_dir) / f'{sample_name}.txt'

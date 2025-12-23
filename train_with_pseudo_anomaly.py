@@ -18,8 +18,8 @@ from easydict import EasyDict
 from preprocessing import Dataset
 from utils.misc import *
 from models.autoencoder import *
-from evaluation import ROC_AP
-
+# from evaluation import ROC_AP
+print(1)
 
 # Arguments
 parser = argparse.ArgumentParser(description='Train R3DAD with Pseudo Anomaly Synthesis')
@@ -38,7 +38,7 @@ parser.add_argument('--resume', type=str, default=None)
 # Dataset and preprocessing arguments
 parser.add_argument('--category', type=str, default='ashtray0',
                     help='Category name from shapenet-ad dataset')
-parser.add_argument('--dataset_path', type=str, default='./data/shapenet-ad')
+parser.add_argument('--dataset_path', type=str, default='./data/AnomalyShapeNet/dataset/pcd/')
 parser.add_argument('--batch_size', type=int, default=4,
                     help='Training batch size')
 parser.add_argument('--rollout_batch_size', type=int, default=1,
@@ -91,7 +91,7 @@ parser.add_argument('--poly_q', type=float, default=2.0,
 # Validation
 parser.add_argument('--validation', type=eval, default=False, choices=[True, False],
                     help='Enable validation during training')
-parser.add_argument('--validation_suffixes', type=str, default='',
+parser.add_argument('--validation_suffixes', type=str, default='0,1',
                     help='Comma-separated list of test file suffixes to use for validation')
 
 # Optimizer and scheduler
@@ -123,7 +123,6 @@ if args.manual_seed is not None:
     seed_all(args.manual_seed)
 else:
     seed_all(args.seed)
-
 # Logging
 if args.logging:
     log_dir = get_new_log_dir(args.log_root, prefix=args.category + '_', 
@@ -229,6 +228,7 @@ def train(it, train_iter_ref):
     
     # Forward pass: reconstruct the anomalous point cloud
     # The model should learn to reconstruct back to normal
+    print(xyz_shifted.shape)
     loss = model.get_loss(xyz_shifted)
     
     # Backward and optimize
@@ -279,22 +279,23 @@ def validate(it):
     
     # Compute metrics
     try:
-        metrics = ROC_AP(all_ref, all_recons, all_label, all_mask)
-        roc_i = metrics.get('ROC_i', torch.tensor(0.0)).item()
-        roc_p = metrics.get('ROC_p', torch.tensor(0.0)).item()
-        ap_i = metrics.get('AP_i', torch.tensor(0.0)).item()
-        ap_p = metrics.get('AP_p', torch.tensor(0.0)).item()
+        pass
+        # metrics = ROC_AP(all_ref, all_recons, all_label, all_mask)
+        # roc_i = metrics.get('ROC_i', torch.tensor(0.0)).item()
+        # roc_p = metrics.get('ROC_p', torch.tensor(0.0)).item()
+        # ap_i = metrics.get('AP_i', torch.tensor(0.0)).item()
+        # ap_p = metrics.get('AP_p', torch.tensor(0.0)).item()
         
-        logger.info('[Val] Iter %04d | ROC_i %.6f | ROC_p %.6f | AP_i %.6f | AP_p %.6f' % 
-                    (it, roc_i, roc_p, ap_i, ap_p))
+        # logger.info('[Val] Iter %04d | ROC_i %.6f | ROC_p %.6f | AP_i %.6f | AP_p %.6f' % 
+        #             (it, roc_i, roc_p, ap_i, ap_p))
         
-        writer.add_scalar('val/ROC_i', roc_i, it)
-        writer.add_scalar('val/ROC_p', roc_p, it)
-        writer.add_scalar('val/AP_i', ap_i, it)
-        writer.add_scalar('val/AP_p', ap_p, it)
-        writer.flush()
+        # writer.add_scalar('val/ROC_i', roc_i, it)
+        # writer.add_scalar('val/ROC_p', roc_p, it)
+        # writer.add_scalar('val/AP_i', ap_i, it)
+        # writer.add_scalar('val/AP_p', ap_p, it)
+        # writer.flush()
         
-        return roc_i
+        # return roc_i
     except Exception as e:
         logger.warning(f'[Val] Error computing metrics: {e}')
         return 0.0

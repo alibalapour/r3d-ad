@@ -38,7 +38,7 @@ class ShapeNetAD(Dataset):
 
     def get_statistics(self):
 
-        stats_dir = os.path.join(self.path, '../shapenet-ad' + '_stats/')
+        stats_dir = os.path.join(self.path, '../AnomalyShapeNet' + '_stats/')
         os.makedirs(stats_dir, exist_ok=True)
 
         if len(self.cates) == len(all_shapenetad_cates):

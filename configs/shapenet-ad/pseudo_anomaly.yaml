@@ -1,7 +1,7 @@
 # Configuration for R3DAD training with Pseudo Anomaly Synthesis
 
 # Dataset configuration
-dataset_path: data/shapenet-ad/
+dataset_path: data/AnomalyShapeNet/dataset/pcd/
 batch_size: 4
 num_works: 4
 data_repeat: 1
@@ -49,4 +49,4 @@ seed: 2020
 
 # Validation
 validation: false
-validation_suffixes: ''
+validation_suffixes: '0,1'

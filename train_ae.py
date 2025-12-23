@@ -29,7 +29,7 @@ parser.add_argument('--resume', type=str, default=None)
 
 # Datasets and loaders
 parser.add_argument('--dataset', type=str, default='ShapeNetAD')
-parser.add_argument('--dataset_path', type=str, default='./data/shapenet-ad')
+parser.add_argument('--dataset_path', type=str, default='./data/AnomalyShapeNet/dataset')
 parser.add_argument('--category', type=str, default='ashtray0')
 parser.add_argument('--scale_mode', type=str, default=None)
 parser.add_argument('--num_points', type=int, default=2048)
