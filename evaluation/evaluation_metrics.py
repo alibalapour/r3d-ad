@@ -12,7 +12,6 @@ from sklearn.neighbors import NearestNeighbors
 import torch
 
 from pointnet2_ops import pointnet2_utils
-from knn_cuda import KNN
 from .patchcore import NearestNeighbourScorer
 
 def gps(xyz, num_group, group_size):
@@ -27,7 +26,8 @@ def gps(xyz, num_group, group_size):
     fps_idx = pointnet2_utils.furthest_point_sample(xyz, num_group) 
     center = pointnet2_utils.gather_operation(xyz.transpose(1, 2).contiguous(), fps_idx).transpose(1,2).contiguous()
     # knn to get the neighborhood
-    _, idx = KNN(k=group_size, transpose_mode=True)(xyz, center) # B G M
+    dist = torch.cdist(center, xyz)  # B G N
+    _, idx = torch.topk(dist, k=group_size, largest=False, dim=2)  # B G M
     assert idx.size(1) == num_group
     assert idx.size(2) == group_size
     idx_base = torch.arange(0, batch_size, device=xyz.device).view(-1, 1, 1) * num_points
@@ -43,7 +43,8 @@ def nn(xyz, k):
     
     # xyz (N, 3)
     N = xyz.shape[0]
-    _, idx = KNN(k,True)(xyz[None], xyz[None])
+    dist = torch.cdist(xyz.unsqueeze(0), xyz.unsqueeze(0)).squeeze(0)  # N, N
+    _, idx = torch.topk(dist, k=k, largest=False, dim=1)  # N, k
     idx = idx.view(-1)
     neighborhood = xyz.view(N, -1)[idx, :]
     neighborhood = neighborhood.view(N, k, -1)
