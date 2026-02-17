@@ -135,7 +135,7 @@ class ShapeNetAD(Dataset):
                     if self.patch_num > 0:
                         pc_patched, mask_np = random_patch(pc_np.copy(), self.patch_num, self.patch_scale)
                         pc = torch.from_numpy(pc_patched)
-                        pc_raw = torch.from_numpy(pc_np.astype(np.float32))
+                        pc_raw = torch.from_numpy(pc_np)
                         mask = torch.from_numpy(mask_np)
                         label = 1
                     else:

@@ -150,10 +150,7 @@ def train(it):
     model.train()
 
     # Forward
-    if 'pointcloud_raw' in batch:
-        x_raw = batch['pointcloud_raw'].to(args.device)
-        loss = model.get_loss(x, x_raw)
-    elif args.rel:
+    if 'pointcloud_raw' in batch or args.rel:
         x_raw = batch['pointcloud_raw'].to(args.device)
         loss = model.get_loss(x, x_raw)
     else:
