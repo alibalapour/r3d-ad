@@ -34,6 +34,8 @@ parser.add_argument('--category', type=str, default='ashtray0')
 parser.add_argument('--scale_mode', type=str, default=None)
 parser.add_argument('--num_points', type=int, default=2048)
 parser.add_argument('--num_aug', type=int, default=2048)
+parser.add_argument('--patch_num', type=int, default=128)
+parser.add_argument('--patch_scale', type=float, default=0.05)
 parser.add_argument('--train_batch_size', type=int, default=128)
 parser.add_argument('--val_batch_size', type=int, default=128)
 parser.add_argument('--rotate', type=eval, default=False, choices=[True, False])
@@ -89,6 +91,8 @@ train_dset = getattr(sys.modules[__name__], args.dataset)(
     num_points=args.num_points,
     num_aug = args.num_aug,
     transforms=train_transforms,
+    patch_num=args.patch_num,
+    patch_scale=args.patch_scale,
 )
 val_dset = getattr(sys.modules[__name__], args.dataset)(
     path=args.dataset_path,
@@ -146,7 +150,10 @@ def train(it):
     model.train()
 
     # Forward
-    if args.rel:
+    if 'pointcloud_raw' in batch:
+        x_raw = batch['pointcloud_raw'].to(args.device)
+        loss = model.get_loss(x, x_raw)
+    elif args.rel:
         x_raw = batch['pointcloud_raw'].to(args.device)
         loss = model.get_loss(x, x_raw)
     else:
