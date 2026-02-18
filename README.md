@@ -18,6 +18,11 @@
   - [Training Objective](#training-objective)
   - [Anomaly Detection at Inference](#anomaly-detection-at-inference)
   - [Anomaly Scoring](#anomaly-scoring)
+- [Evaluation Metrics](#evaluation-metrics)
+  - [Training Log Output](#training-log-output)
+  - [Metric Definitions](#metric-definitions)
+  - [Scoring Methods](#scoring-methods)
+  - [Interpreting Results](#interpreting-results)
 - [Pseudo Anomaly Generation](#pseudo-anomaly-generation)
   - [Overview](#pseudo-anomaly-overview)
   - [Method 1: Random Patch (Localized Bulge/Dent)](#method-1-random-patch-localized-bulgedent)
@@ -163,6 +168,92 @@ Two complementary scoring methods are used (`evaluation/evaluation_metrics.py`):
 - Provides both image-level (max score) and point-level anomaly scores
 
 **Metrics:** Image-level AUROC, Image-level AP, Point-level AUROC, Point-level AP
+
+---
+
+## Evaluation Metrics
+
+During training, the model is periodically validated on the test set and outputs two lines of metrics per validation iteration. This section explains what each metric means and how to interpret them.
+
+### Training Log Output
+
+A typical validation log looks like this:
+
+```
+[Val] Iter 40000 | ROC_i_cdist 0.942857 | ROC_p_cdist 0.714458 | AP_i_cdist 0.951158 | AP_p_cdist 0.307707
+[Val] Iter 40000 | ROC_i_nn 0.685714 | ROC_p_nn 0.591540 | AP_i_nn 0.726107 | AP_p_nn 0.058300
+```
+
+The first line reports metrics computed using the **Chamfer distance (cdist)** scoring method. The second line reports metrics computed using the **k-nearest neighbor (nn)** scoring method. Each line contains four metrics covering both detection granularities (image-level and point-level) and two evaluation protocols (AUROC and AP).
+
+Here is the full mapping of all 8 logged metrics:
+
+| Log Name | Full Name | Granularity | Protocol | Scoring Method |
+|----------|-----------|-------------|----------|----------------|
+| `ROC_i_cdist` | Image-level AUROC | Object-level | AUROC | Chamfer Distance |
+| `ROC_p_cdist` | Point-level AUROC | Point-level | AUROC | Chamfer Distance |
+| `AP_i_cdist` | Image-level Average Precision | Object-level | AP | Chamfer Distance |
+| `AP_p_cdist` | Point-level Average Precision | Point-level | AP | Chamfer Distance |
+| `ROC_i_nn` | Image-level AUROC | Object-level | AUROC | k-Nearest Neighbor |
+| `ROC_p_nn` | Point-level AUROC | Point-level | AUROC | k-Nearest Neighbor |
+| `AP_i_nn` | Image-level Average Precision | Object-level | AP | k-Nearest Neighbor |
+| `AP_p_nn` | Point-level Average Precision | Point-level | AP | k-Nearest Neighbor |
+
+### Metric Definitions
+
+**AUROC (Area Under the Receiver Operating Characteristic Curve):**
+- Measures the model's ability to **rank** anomalous samples higher than normal ones across all possible thresholds
+- Computed using `sklearn.metrics.roc_auc_score`
+- Range: 0.0 to 1.0 (1.0 = perfect separation, 0.5 = random chance)
+- **Threshold-independent** — evaluates ranking quality, not a single decision boundary
+
+**AP (Average Precision):**
+- Summarizes the **precision-recall curve** as the weighted mean of precisions at each recall threshold
+- Computed using `sklearn.metrics.average_precision_score`
+- Range: 0.0 to 1.0 (1.0 = perfect precision at all recall levels)
+- More sensitive to **class imbalance** than AUROC — particularly informative for point-level evaluation where anomalous points are rare
+
+**Image-level (`_i`) vs. Point-level (`_p`):**
+- **Image-level** (suffix `_i`): One score per object — answers *"Is this object anomalous?"*. Each test sample gets a single scalar anomaly score, compared against the binary label (0 = normal, 1 = anomalous)
+- **Point-level** (suffix `_p`): One score per point — answers *"Which points are anomalous?"*. Each of the 2048 points gets an anomaly score, compared against the per-point ground truth mask
+
+### Scoring Methods
+
+Both scoring methods compute anomaly scores from the same input/reconstruction pair, but use different distance computation strategies:
+
+**Chamfer Distance (`_cdist`):**
+1. Computes pairwise distances between all input and reconstructed points using `torch.cdist`
+2. For each input point, finds the minimum distance to any reconstructed point
+3. The image-level score is the maximum per-point distance, refined with **PatchCore-style reweighting** that modulates the score based on k-nearest neighbor distances in the reconstruction space (see `evaluation/evaluation_metrics.py`, lines 62–84)
+4. Point-level scores are the per-point minimum distances (segmentation map)
+
+**k-Nearest Neighbor (`_nn`):**
+1. For each point, computes a local geometric descriptor by concatenating the coordinates of its k=64 nearest neighbors (flattened to a 192-dimensional vector)
+2. Uses **FAISS** (via the `NearestNeighbourScorer` in `evaluation/patchcore.py`) to find the nearest neighbor of each input point's descriptor in the reconstruction descriptor space
+3. The image-level score is the maximum point-level score
+4. Point-level scores are the per-point nearest neighbor distances
+
+### Interpreting Results
+
+Using the example log output:
+
+```
+ROC_i_cdist 0.942857  →  94.3% image-level AUROC (Chamfer) — strong object-level detection
+ROC_p_cdist 0.714458  →  71.4% point-level AUROC (Chamfer) — moderate point localization
+AP_i_cdist  0.951158  →  95.1% image-level AP (Chamfer)    — excellent detection precision-recall
+AP_p_cdist  0.307707  →  30.8% point-level AP (Chamfer)    — low, due to class imbalance at point level
+
+ROC_i_nn    0.685714  →  68.6% image-level AUROC (KNN)     — moderate object-level detection
+ROC_p_nn    0.591540  →  59.2% point-level AUROC (KNN)     — weak point localization
+AP_i_nn     0.726107  →  72.6% image-level AP (KNN)        — moderate detection precision-recall
+AP_p_nn     0.058300  →   5.8% point-level AP (KNN)        — low, typical for sparse anomalies
+```
+
+**Key observations:**
+- **Point-level AP is typically much lower** than other metrics because anomalous points are a small minority of all points (severe class imbalance). This is expected behavior, not a model failure
+- **Chamfer distance (`_cdist`) metrics tend to be higher** than KNN (`_nn`) metrics in this codebase, as the PatchCore-style reweighting improves discrimination
+- **Image-level metrics are generally higher** than point-level metrics because object-level detection is an easier task than precise point-level localization
+- The model is validated every `--val_freq` iterations (default: 1000). The final metrics at the last iteration represent the model's end-of-training performance
 
 ---
 
