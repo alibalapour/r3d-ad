@@ -14,7 +14,7 @@ all_shapenetad_cates = ['ashtray0', 'bag0', 'bottle0', 'bottle1', 'bottle3', 'bo
 
 class ShapeNetAD(Dataset):
     
-    def __init__(self, path, cates, split, scale_mode=None, num_points=2048, num_aug=4, transforms=list()):
+    def __init__(self, path, cates, split, scale_mode=None, num_points=2048, num_aug=4, transforms=list(), patch_num=0, patch_scale=0.05):
         super().__init__()
         assert isinstance(cates, list), '`cates` must be a list of cate names.'
         assert split in ('train', 'test')
@@ -29,6 +29,8 @@ class ShapeNetAD(Dataset):
         self.num_points = num_points
         self.num_aug = num_aug
         self.transforms = transforms
+        self.patch_num = patch_num
+        self.patch_scale = patch_scale
 
         self.pointclouds = []
         self.stats = None
@@ -96,9 +98,9 @@ class ShapeNetAD(Dataset):
         
         return pc, shift, scale
 
-    def append(self, pc, cate, pc_id, mask, label):
+    def append(self, pc, cate, pc_id, mask, label, pc_raw=None):
         pc, shift, scale = self.scale(pc)
-        self.pointclouds.append({
+        data = {
             'pointcloud': pc,
             'cate': cate,
             'id': pc_id,
@@ -106,7 +108,10 @@ class ShapeNetAD(Dataset):
             'scale': scale,
             'mask': mask,
             'label': label,
-        })
+        }
+        if pc_raw is not None:
+            data['pointcloud_raw'] = (pc_raw - shift) / scale
+        self.pointclouds.append(data)
     
     def load(self):
 
@@ -126,10 +131,19 @@ class ShapeNetAD(Dataset):
                         pointcloud = random.choice(tpls)
                     pointcloud = random_rorate(pointcloud)
                     choice = np.random.choice(len(pointcloud), self.num_points, False)
-                    pc = torch.from_numpy(pointcloud[choice])
-                    mask = torch.zeros(self.num_points)
-                    label = 0
-                    self.append(pc, cate, pc_id, mask, label)
+                    pc_np = pointcloud[choice]
+                    if self.patch_num > 0:
+                        pc_patched, mask_np = random_patch(pc_np.copy(), self.patch_num, self.patch_scale)
+                        pc = torch.from_numpy(pc_patched)
+                        pc_raw = torch.from_numpy(pc_np)
+                        mask = torch.from_numpy(mask_np)
+                        label = 1
+                    else:
+                        pc = torch.from_numpy(pc_np)
+                        pc_raw = None
+                        mask = torch.zeros(self.num_points)
+                        label = 0
+                    self.append(pc, cate, pc_id, mask, label, pc_raw)
 
             elif self.split == 'test':
                 local_path = os.path.join(self.path, cate, 'test')
