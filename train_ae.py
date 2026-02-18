@@ -58,6 +58,7 @@ parser.add_argument('--tag', type=str, default=None)
 parser.add_argument('--num_val_batches', type=int, default=-1)
 parser.add_argument('--num_inspect_batches', type=int, default=1)
 parser.add_argument('--num_inspect_pointclouds', type=int, default=4)
+parser.add_argument('--save_ply', type=eval, default=False, choices=[True, False])
 args = parser.parse_args()
 seed_all(args.seed)
 
@@ -104,6 +105,14 @@ train_iter = get_data_iterator(DataLoader(
     num_workers=0,
 ))
 val_loader = DataLoader(val_dset, batch_size=args.val_batch_size, num_workers=0)
+
+# Save preprocessed point clouds as PLY
+if args.save_ply:
+    ply_dir = os.path.join(log_dir if args.logging else '.', 'ply_preprocessed')
+    logger.info('Saving preprocessed point clouds as PLY to %s ...' % ply_dir)
+    train_dset.save_as_ply(os.path.join(ply_dir, 'train'))
+    val_dset.save_as_ply(os.path.join(ply_dir, 'test'))
+    logger.info('Done saving PLY files.')
 
 
 # Model

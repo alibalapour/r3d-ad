@@ -155,6 +155,18 @@ class ShapeNetAD(Dataset):
         self.pointclouds.sort(key=lambda data: data['id'], reverse=False)
         random.shuffle(self.pointclouds)
 
+    def save_as_ply(self, save_dir):
+        os.makedirs(save_dir, exist_ok=True)
+        for idx, data in enumerate(tqdm(self.pointclouds, desc='Saving PLY')):
+            pc = data['pointcloud'].numpy()
+            cate = data['cate']
+            pc_id = data['id']
+            label = data['label']
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(pc)
+            filename = f'{cate}_{self.split}_{idx:04d}_id{pc_id}_label{label}.ply'
+            o3d.io.write_point_cloud(os.path.join(save_dir, filename), pcd)
+
     def __len__(self):
         return len(self.pointclouds)
 
