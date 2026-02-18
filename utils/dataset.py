@@ -14,7 +14,7 @@ all_shapenetad_cates = ['ashtray0', 'bag0', 'bottle0', 'bottle1', 'bottle3', 'bo
 
 class ShapeNetAD(Dataset):
     
-    def __init__(self, path, cates, split, scale_mode=None, num_points=2048, num_aug=4, transforms=list()):
+    def __init__(self, path, cates, split, scale_mode=None, num_points=2048, num_aug=4, transforms=list(), use_patch=False, patch_num=128, patch_scale=0.05):
         super().__init__()
         assert isinstance(cates, list), '`cates` must be a list of cate names.'
         assert split in ('train', 'test')
@@ -29,6 +29,9 @@ class ShapeNetAD(Dataset):
         self.num_points = num_points
         self.num_aug = num_aug
         self.transforms = transforms
+        self.use_patch = use_patch
+        self.patch_num = patch_num
+        self.patch_scale = patch_scale
 
         self.pointclouds = []
         self.stats = None
@@ -126,8 +129,13 @@ class ShapeNetAD(Dataset):
                         pointcloud = random.choice(tpls)
                     pointcloud = random_rorate(pointcloud)
                     choice = np.random.choice(len(pointcloud), self.num_points, False)
-                    pc = torch.from_numpy(pointcloud[choice])
-                    mask = torch.zeros(self.num_points)
+                    pointcloud = pointcloud[choice]
+                    if self.use_patch:
+                        pointcloud, mask_np = random_patch(pointcloud, self.patch_num, self.patch_scale)
+                        mask = torch.from_numpy(mask_np)
+                    else:
+                        mask = torch.zeros(self.num_points)
+                    pc = torch.from_numpy(pointcloud)
                     label = 0
                     self.append(pc, cate, pc_id, mask, label)
 
