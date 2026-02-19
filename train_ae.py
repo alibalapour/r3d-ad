@@ -41,6 +41,7 @@ parser.add_argument('--rel', type=eval, default=False, choices=[True, False])
 parser.add_argument('--use_patch', type=eval, default=False, choices=[True, False])
 parser.add_argument('--patch_num', type=int, default=128)
 parser.add_argument('--patch_scale', type=float, default=0.05)
+parser.add_argument('--use_af3ad', type=eval, default=False, choices=[True, False])
 
 # Optimizer and scheduler
 parser.add_argument('--lr', type=float, default=1e-3)
@@ -96,6 +97,7 @@ train_dset = getattr(sys.modules[__name__], args.dataset)(
     use_patch=args.use_patch,
     patch_num=args.patch_num,
     patch_scale=args.patch_scale,
+    use_af3ad=args.use_af3ad,
 )
 val_dset = getattr(sys.modules[__name__], args.dataset)(
     path=args.dataset_path,

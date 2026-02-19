@@ -2,17 +2,18 @@
 #
 # run_comparison.sh
 #
-# Compares two training modes on three AnomalyShapeNet classes (ashtray0, bottle0, vase0):
+# Compares three training modes on three AnomalyShapeNet classes (ashtray0, bottle0, vase0):
 #   1. Base mode   – no pseudo anomaly patches  (--use_patch False)
 #   2. Modified mode – pseudo anomaly patches enabled (--use_patch True)
+#   3. AF3AD mode  – AF3AD pseudo anomaly synthesis (--use_af3ad True)
 #
-# Both modes share the same hyper-parameters.  Differences from the
+# All modes share the same hyper-parameters.  Differences from the
 # defaults in train_ae.py:
 #   • num_points increased from 2048 → 4096
 #   • train / val batch size reduced from 128 → 32
 #   • PLY saving enabled (--save_ply True)
 #
-# All six runs execute sequentially so the script is safe to leave
+# All nine runs execute sequentially so the script is safe to leave
 # running unattended.
 
 set -euo pipefail
@@ -38,6 +39,7 @@ PATCH_SCALE=0.05
 # Logging
 LOG_ROOT_BASE="./logs_ae/comparison_base"
 LOG_ROOT_PATCH="./logs_ae/comparison_patch"
+LOG_ROOT_AF3AD="./logs_ae/comparison_af3ad"
 # ─────────────────────────────────────────────────────────────────────
 
 # Common arguments shared by both modes
@@ -55,7 +57,7 @@ COMMON_ARGS=(
 )
 
 echo "============================================================"
-echo " R3D-AD  –  Base vs. Patch-Gen Comparison"
+echo " R3D-AD  –  Base vs. Patch-Gen vs. AF3AD Comparison"
 echo "============================================================"
 echo " Categories : ${CATEGORIES[*]}"
 echo " Points     : $NUM_POINTS"
@@ -97,9 +99,26 @@ for CATEGORY in "${CATEGORIES[@]}"; do
     echo "  ✓ Finished patch-gen training for $CATEGORY"
 done
 
+# ── Mode 3: AF3AD (pseudo anomalies via AF3AD synthesiser) ──────────
+echo ""
+echo ">>> MODE 3 – AF3AD (use_af3ad=True)"
+echo "------------------------------------------------------------"
+for CATEGORY in "${CATEGORIES[@]}"; do
+    echo ""
+    echo "  ▸ Training category: $CATEGORY"
+    python train_ae.py \
+        --category    "$CATEGORY" \
+        --log_root    "$LOG_ROOT_AF3AD" \
+        --tag         "af3ad" \
+        --use_af3ad   True \
+        "${COMMON_ARGS[@]}"
+    echo "  ✓ Finished AF3AD training for $CATEGORY"
+done
+
 echo ""
 echo "============================================================"
 echo " All runs complete."
 echo " Base    logs → $LOG_ROOT_BASE"
 echo " Patch   logs → $LOG_ROOT_PATCH"
+echo " AF3AD   logs → $LOG_ROOT_AF3AD"
 echo "============================================================"
