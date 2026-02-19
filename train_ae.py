@@ -38,6 +38,9 @@ parser.add_argument('--train_batch_size', type=int, default=128)
 parser.add_argument('--val_batch_size', type=int, default=128)
 parser.add_argument('--rotate', type=eval, default=False, choices=[True, False])
 parser.add_argument('--rel', type=eval, default=False, choices=[True, False])
+parser.add_argument('--use_patch', type=eval, default=False, choices=[True, False])
+parser.add_argument('--patch_num', type=int, default=128)
+parser.add_argument('--patch_scale', type=float, default=0.05)
 
 # Optimizer and scheduler
 parser.add_argument('--lr', type=float, default=1e-3)
@@ -90,6 +93,9 @@ train_dset = getattr(sys.modules[__name__], args.dataset)(
     num_points=args.num_points,
     num_aug = args.num_aug,
     transforms=train_transforms,
+    use_patch=args.use_patch,
+    patch_num=args.patch_num,
+    patch_scale=args.patch_scale,
 )
 val_dset = getattr(sys.modules[__name__], args.dataset)(
     path=args.dataset_path,

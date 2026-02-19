@@ -1,0 +1,19 @@
+============================================================
+ R3D-AD  –  Base vs. Patch-Gen Comparison
+============================================================
+ Categories : ashtray0 bottle0 vase0
+ Points     : 4096
+ Batch size : 32
+ Max iters  : 40000
+============================================================
+
+>>> MODE 1 – Base (use_patch=False)
+------------------------------------------------------------
+
+  ▸ Training category: ashtray0
+  ✓ Finished base training for ashtray0
+
+  ▸ Training category: bottle0
+  ✓ Finished base training for bottle0
+
+  ▸ Training category: vase0
