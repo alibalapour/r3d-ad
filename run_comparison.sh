@@ -25,11 +25,11 @@ NUM_AUG=2048
 TRAIN_BATCH_SIZE=32
 VAL_BATCH_SIZE=32
 MAX_ITERS=40000
-VAL_FREQ=1000
-SEED=2020
+VAL_FREQ=10000
+SEED=42
 
 DATASET="ShapeNetAD"
-DATASET_PATH="./data/shapenet-ad"
+DATASET_PATH="./data/dataset/pcd"
 
 # Patch-gen parameters (used only in modified mode)
 PATCH_NUM=128
