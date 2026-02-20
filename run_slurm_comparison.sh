@@ -154,6 +154,7 @@ python train_ae.py \
     --val_freq         "$VAL_FREQ" \
     --seed             "$SEED" \
     --save_ply         True \
+    --no_tensorboard   True \
     "${EXTRA_ARGS[@]}"
 
 echo "=== Job finished at $(date) ==="
