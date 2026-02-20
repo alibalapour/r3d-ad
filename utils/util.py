@@ -3,6 +3,8 @@ import numpy as np
 import open3d as o3d
 from itertools import repeat
 
+from AF3AD import PseudoAnomalySynthesizer
+
 def random_rorate(pc):
     degree = np.random.uniform(-180, 180, 3)
     matrix = o3d.geometry.get_rotation_matrix_from_xyz(np.pi * degree / 180.0)
@@ -131,6 +133,38 @@ def random_patch(points, patch_num, scale):
     mask[distance_order[:patch_num]] = 1
     
     return new_points, mask
+
+def af3ad_patch(points, synthesizer=None):
+    """Generate pseudo anomaly using the AF3AD synthesizer.
+
+    Returns (new_points, mask) with the same contract as ``random_patch``.
+    """
+    if synthesizer is None:
+        synthesizer = PseudoAnomalySynthesizer()
+
+    # Estimate normals via Open3D
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(points)
+    pcd.estimate_normals(
+        search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30)
+    )
+    normals = np.asarray(pcd.normals, dtype=np.float32)
+
+    # Random anomaly centre
+    center = points[np.random.randint(len(points))]
+
+    # Random preset configuration
+    presets = synthesizer.preset_factory.presets
+    cfg = presets[np.random.randint(len(presets))]()
+
+    new_points = synthesizer.generate(points, normals, center, cfg).astype(np.float32)
+
+    # Binary mask: 1 where a point was displaced
+    displacement = np.linalg.norm(new_points - points, axis=1)
+    mask = (displacement > 1e-6).astype(np.float32)
+
+    return new_points, mask
+
 
 def random_translate(points, radius=0.08, translate=0.02, part=16):
     mask = np.zeros(points.shape[0], np.float32)

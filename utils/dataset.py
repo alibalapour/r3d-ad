@@ -8,13 +8,14 @@ import h5py
 from tqdm.auto import tqdm
 import open3d as o3d
 
-from utils.util import normalize, random_rorate, random_patch, random_translate
+from utils.util import normalize, random_rorate, random_patch, random_translate, af3ad_patch
+from AF3AD import PseudoAnomalySynthesizer
 
 all_shapenetad_cates = ['ashtray0', 'bag0', 'bottle0', 'bottle1', 'bottle3', 'bowl0', 'bowl1', 'bowl2', 'bowl3', 'bowl4', 'bowl5', 'bucket0', 'bucket1', 'cap0', 'cap3', 'cap4', 'cap5', 'cup0', 'cup1', 'eraser0', 'headset0', 'headset1', 'helmet0', 'helmet1', 'helmet2', 'helmet3', 'jar0', 'microphone0', 'shelf0', 'tap0', 'tap1', 'vase0', 'vase1', 'vase2', 'vase3', 'vase4', 'vase5', 'vase7', 'vase8', 'vase9']
 
 class ShapeNetAD(Dataset):
     
-    def __init__(self, path, cates, split, scale_mode=None, num_points=2048, num_aug=4, transforms=list(), use_patch=False, patch_num=128, patch_scale=0.05):
+    def __init__(self, path, cates, split, scale_mode=None, num_points=2048, num_aug=4, transforms=list(), use_patch=False, patch_num=128, patch_scale=0.05, use_af3ad=False):
         super().__init__()
         assert isinstance(cates, list), '`cates` must be a list of cate names.'
         assert split in ('train', 'test')
@@ -32,11 +33,16 @@ class ShapeNetAD(Dataset):
         self.use_patch = use_patch
         self.patch_num = patch_num
         self.patch_scale = patch_scale
+        self.use_af3ad = use_af3ad
+        if self.use_af3ad and self.use_patch:
+            import warnings
+            warnings.warn("Both use_af3ad and use_patch are True; use_af3ad takes precedence.")
 
         self.pointclouds = []
         self.stats = None
 
         # self.get_statistics()
+        self._af3ad_synth = None
         self.load()
 
     def get_statistics(self):
@@ -130,7 +136,12 @@ class ShapeNetAD(Dataset):
                     pointcloud = random_rorate(pointcloud)
                     choice = np.random.choice(len(pointcloud), self.num_points, False)
                     pointcloud = pointcloud[choice]
-                    if self.use_patch:
+                    if self.use_af3ad:
+                        if self._af3ad_synth is None:
+                            self._af3ad_synth = PseudoAnomalySynthesizer()
+                        pointcloud, mask_np = af3ad_patch(pointcloud, self._af3ad_synth)
+                        mask = torch.from_numpy(mask_np)
+                    elif self.use_patch:
                         pointcloud, mask_np = random_patch(pointcloud, self.patch_num, self.patch_scale)
                         mask = torch.from_numpy(mask_np)
                     else:

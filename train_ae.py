@@ -2,7 +2,6 @@ import os
 import sys
 import argparse
 import torch
-import torch.utils.tensorboard
 from torch.nn.utils import clip_grad_norm_
 from tqdm.auto import tqdm
 
@@ -41,6 +40,7 @@ parser.add_argument('--rel', type=eval, default=False, choices=[True, False])
 parser.add_argument('--use_patch', type=eval, default=False, choices=[True, False])
 parser.add_argument('--patch_num', type=int, default=128)
 parser.add_argument('--patch_scale', type=float, default=0.05)
+parser.add_argument('--use_af3ad', type=eval, default=False, choices=[True, False])
 
 # Optimizer and scheduler
 parser.add_argument('--lr', type=float, default=1e-3)
@@ -62,6 +62,7 @@ parser.add_argument('--num_val_batches', type=int, default=-1)
 parser.add_argument('--num_inspect_batches', type=int, default=1)
 parser.add_argument('--num_inspect_pointclouds', type=int, default=4)
 parser.add_argument('--save_ply', type=eval, default=False, choices=[True, False])
+parser.add_argument('--no_tensorboard', type=eval, default=False, choices=[True, False])
 args = parser.parse_args()
 seed_all(args.seed)
 
@@ -69,7 +70,11 @@ seed_all(args.seed)
 if args.logging:
     log_dir = get_new_log_dir(args.log_root, prefix=args.category + '_', postfix='_' + args.tag if args.tag is not None else '')
     logger = get_logger('train', log_dir)
-    writer = torch.utils.tensorboard.SummaryWriter(log_dir)
+    if args.no_tensorboard:
+        writer = BlackHole()
+    else:
+        import torch.utils.tensorboard
+        writer = torch.utils.tensorboard.SummaryWriter(log_dir)
     ckpt_mgr = CheckpointManager(log_dir)
 else:
     logger = get_logger('train', None)
@@ -96,6 +101,7 @@ train_dset = getattr(sys.modules[__name__], args.dataset)(
     use_patch=args.use_patch,
     patch_num=args.patch_num,
     patch_scale=args.patch_scale,
+    use_af3ad=args.use_af3ad,
 )
 val_dset = getattr(sys.modules[__name__], args.dataset)(
     path=args.dataset_path,

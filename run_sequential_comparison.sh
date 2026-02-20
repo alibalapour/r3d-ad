@@ -1,28 +1,44 @@
 #!/usr/bin/env bash
 #
-# run_comparison.sh
+# run_sequential_comparison.sh
 #
-# Compares three training modes on three AnomalyShapeNet classes (ashtray0, bottle0, vase0):
-#   1. Base mode   – no pseudo anomaly patches  (--use_patch False)
-#   2. Modified mode – pseudo anomaly patches enabled (--use_patch True)
-#   3. AF3AD mode  – AF3AD pseudo anomaly synthesis (--use_af3ad True)
+# Runs the same 15-class × 3-config comparison as run_slurm_comparison.sh,
+# but sequentially on a single machine (no SLURM required).
 #
-# All modes share the same hyper-parameters.  Differences from the
-# defaults in train_ae.py:
-#   • num_points increased from 2048 → 4096
-#   • train / val batch size reduced from 128 → 32
-#   • PLY saving enabled (--save_ply True)
+# Three training modes across 15 AnomalyShapeNet classes (index-0 variants):
+#   1. Base mode    – no pseudo anomaly patches  (--use_patch False)
+#   2. Patch-Gen    – random_patch pseudo anomalies (--use_patch True)
+#   3. AF3AD mode   – AF3AD pseudo anomaly synthesis (--use_af3ad True)
 #
-# All nine runs execute sequentially so the script is safe to leave
+# AF3AD uses NUM_AUG=4096 (more presets → more training samples).
+# Base and Patch-Gen use NUM_AUG=2048.
+#
+# All 45 runs execute sequentially so the script is safe to leave
 # running unattended.
 
 set -euo pipefail
 
-# ── Configurable parameters ──────────────────────────────────────────
-CATEGORIES=("ashtray0" "bottle0" "vase0")
+# ── Categories ───────────────────────────────────────────────────────
+CATEGORIES=(
+    "ashtray0"
+    "bag0"
+    "bottle0"
+    "bowl0"
+    "bucket0"
+    "cap0"
+    "cup0"
+    "eraser0"
+    "headset0"
+    "helmet0"
+    "jar0"
+    "microphone0"
+    "shelf0"
+    "tap0"
+    "vase0"
+)
 
-NUM_POINTS=4096
-NUM_AUG=2048
+# ── Shared hyper-parameters ──────────────────────────────────────────
+NUM_POINTS=15000
 TRAIN_BATCH_SIZE=32
 VAL_BATCH_SIZE=32
 MAX_ITERS=40000
@@ -32,7 +48,7 @@ SEED=42
 DATASET="ShapeNetAD"
 DATASET_PATH="./data/dataset/pcd"
 
-# Patch-gen parameters (used only in modified mode)
+# Patch-gen parameters (used only in Patch-Gen mode)
 PATCH_NUM=128
 PATCH_SCALE=0.05
 
@@ -42,12 +58,26 @@ LOG_ROOT_PATCH="./logs_ae/comparison_patch"
 LOG_ROOT_AF3AD="./logs_ae/comparison_af3ad"
 # ─────────────────────────────────────────────────────────────────────
 
-# Common arguments shared by both modes
-COMMON_ARGS=(
+# Common arguments shared by base and patch modes (NUM_AUG=2048)
+COMMON_ARGS_BASE=(
     --dataset      "$DATASET"
     --dataset_path "$DATASET_PATH"
     --num_points   "$NUM_POINTS"
-    --num_aug      "$NUM_AUG"
+    --num_aug      2048
+    --train_batch_size "$TRAIN_BATCH_SIZE"
+    --val_batch_size   "$VAL_BATCH_SIZE"
+    --max_iters    "$MAX_ITERS"
+    --val_freq     "$VAL_FREQ"
+    --seed         "$SEED"
+    --save_ply     True
+)
+
+# Common arguments for AF3AD mode (NUM_AUG=4096)
+COMMON_ARGS_AF3AD=(
+    --dataset      "$DATASET"
+    --dataset_path "$DATASET_PATH"
+    --num_points   "$NUM_POINTS"
+    --num_aug      4096
     --train_batch_size "$TRAIN_BATCH_SIZE"
     --val_batch_size   "$VAL_BATCH_SIZE"
     --max_iters    "$MAX_ITERS"
@@ -63,6 +93,8 @@ echo " Categories : ${CATEGORIES[*]}"
 echo " Points     : $NUM_POINTS"
 echo " Batch size : $TRAIN_BATCH_SIZE"
 echo " Max iters  : $MAX_ITERS"
+echo " Seed       : $SEED"
+echo " Num AUG    : base/patch=2048, af3ad=4096"
 echo "============================================================"
 echo ""
 
@@ -77,13 +109,13 @@ for CATEGORY in "${CATEGORIES[@]}"; do
         --log_root   "$LOG_ROOT_BASE" \
         --tag        "base" \
         --use_patch  False \
-        "${COMMON_ARGS[@]}"
+        "${COMMON_ARGS_BASE[@]}"
     echo "  ✓ Finished base training for $CATEGORY"
 done
 
-# ── Mode 2: Modified (with pseudo anomaly patches) ──────────────────
+# ── Mode 2: Patch-Gen (with random_patch pseudo anomalies) ──────────
 echo ""
-echo ">>> MODE 2 – Modified (use_patch=True)"
+echo ">>> MODE 2 – Patch-Gen (use_patch=True)"
 echo "------------------------------------------------------------"
 for CATEGORY in "${CATEGORIES[@]}"; do
     echo ""
@@ -95,7 +127,7 @@ for CATEGORY in "${CATEGORIES[@]}"; do
         --use_patch   True \
         --patch_num   "$PATCH_NUM" \
         --patch_scale "$PATCH_SCALE" \
-        "${COMMON_ARGS[@]}"
+        "${COMMON_ARGS_BASE[@]}"
     echo "  ✓ Finished patch-gen training for $CATEGORY"
 done
 
@@ -111,7 +143,7 @@ for CATEGORY in "${CATEGORIES[@]}"; do
         --log_root    "$LOG_ROOT_AF3AD" \
         --tag         "af3ad" \
         --use_af3ad   True \
-        "${COMMON_ARGS[@]}"
+        "${COMMON_ARGS_AF3AD[@]}"
     echo "  ✓ Finished AF3AD training for $CATEGORY"
 done
 
